@@ -1,11 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&display=swap');
 
+@import url('https://fonts.googleapis.com/css2?family=Edu+AU+VIC+WA+NT+Arrows:wght@400..700&display=swap');
 * {
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
+  
 }
-
 :root {
   --clr-white: #FFFFFF;
   --clr-black: #202020;
@@ -13,6 +12,7 @@
   --clr-blue: #6C63FF;
   --clr-blue-2: #4c46b6;
   --clr-green: #4fb646;
+  --clr-marron0:#9a8f9c;
 }
 
 body {
@@ -26,16 +26,22 @@ body {
 /* -- NAVIGATION -- */
 
 nav {
+  
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   align-items: center;
+  background-color: #23391f;
+  height:16vh;
+ 
+    background-image: linear-gradient(to right, rgba(166, 231, 53, 0.516), rgb(10, 84, 10));
+  
 }
 
 .nav__brand {
   display: flex;
   justify-content: center;
   align-items: center;
-
+  color:#351f39;
   padding: 20px;
 }
 
@@ -45,7 +51,7 @@ nav {
 }
 
 .nav__brand h1 {
-  color: var(--clr-blue);
+  color: var( --clr-white);
   font-size: 2.5em;
   font-weight: 800;
 }
@@ -64,11 +70,12 @@ nav {
 
 .nav__links li a {
   text-decoration: none;
-  color: var(--clr-black);
+   font-size:x-large;
+  color: var( --clr-white);
 }
 
 .nav__links li a:hover {
-  color: var(--clr-blue);
+  color: var(  --clr-grey);
 }
 
 .nav__connect {
@@ -76,8 +83,8 @@ nav {
   height: 50px;
   margin: 0 auto;
 
-  background-color: var(--clr-blue);
-  color: var(--clr-white);
+  background-color: var(--clr-white);
+  color: var( --clr-black);
 
   border: none;
   border-radius: 4px;
@@ -91,7 +98,7 @@ nav {
 }
 
 .nav__connect:hover {
-  background-color: var(--clr-blue-2);
+  background-color:rgba(166, 231, 53, 0.516);
 }
 
 /* ------------------------------------------------------ */
@@ -101,9 +108,11 @@ header {
   background-image: url("./assets/houses.png");
   background-position: center;
   background-size: cover;
-  min-height: 40vh;
+  min-height: 60vh;
 
   position: relative;
+
+  
 }
 
 .header__title {
@@ -117,6 +126,8 @@ header {
 
   width: 100%;
   text-align: center;
+
+  
 }
 
 .header__search {
@@ -127,6 +138,10 @@ header {
   top: 45%;
   left: 50%;
   transform: translate(-50%, -50%);
+
+  box-shadow: 0px 0px 15px rgb(10, 84, 10);
+  border: 2px solid rgb(10, 84, 10);
+  padding: 15px;
 }
 
 .header__search::placeholder {

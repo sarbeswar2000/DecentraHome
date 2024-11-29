@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
 interface IERC721 {
@@ -11,17 +11,22 @@ interface IERC721 {
 
 contract Escrow {
     address public nftAddress;
-    address payable public seller;
     address public inspector;
     address public lender;
 
-    modifier onlyBuyer(uint256 _nftID) {
-        require(msg.sender == buyer[_nftID], "Only buyer can call this method");
+    mapping(address => bool) public isSeller;
+    mapping(address => bool) public isBuyer;
+
+    modifier notBothRoles() {
+        require(
+            !isSeller[msg.sender] && !isBuyer[msg.sender],
+            "You cannot register as both buyer and seller"
+        );
         _;
     }
 
-    modifier onlySeller() {
-        require(msg.sender == seller, "Only seller can call this method");
+    modifier onlyBuyer(uint256 _nftID) {
+        require(msg.sender == buyer[_nftID], "Only buyer can call this method");
         _;
     }
 
@@ -30,46 +35,67 @@ contract Escrow {
         _;
     }
 
+    modifier onlySeller(uint256 _nftID) {
+        require(msg.sender == seller[_nftID], "Only seller can call this method");
+        _;
+    }
+
+    // Registration functions
+    function registerAsSeller() external notBothRoles {
+        isSeller[msg.sender] = true;
+    }
+
+    function registerAsBuyer() external notBothRoles {
+        isBuyer[msg.sender] = true;
+    }
+
+    // NFT property mappings
     mapping(uint256 => bool) public isListed;
     mapping(uint256 => uint256) public purchasePrice;
     mapping(uint256 => uint256) public escrowAmount;
     mapping(uint256 => address) public buyer;
+    mapping(uint256 => address) public seller;
     mapping(uint256 => bool) public inspectionPassed;
     mapping(uint256 => mapping(address => bool)) public approval;
 
     constructor(
         address _nftAddress,
-        address payable _seller,
         address _inspector,
         address _lender
     ) {
         nftAddress = _nftAddress;
-        seller = _seller;
         inspector = _inspector;
         lender = _lender;
     }
 
     function list(
         uint256 _nftID,
-        address _buyer,
         uint256 _purchasePrice,
         uint256 _escrowAmount
-    ) public payable onlySeller {
+    ) public {
+        require(isSeller[msg.sender], "Only registered sellers can list properties");
+
         // Transfer NFT from seller to this contract
         IERC721(nftAddress).transferFrom(msg.sender, address(this), _nftID);
 
+        seller[_nftID] = msg.sender;
         isListed[_nftID] = true;
         purchasePrice[_nftID] = _purchasePrice;
         escrowAmount[_nftID] = _escrowAmount;
-        buyer[_nftID] = _buyer;
+        
+    }
+    // newly added code for buyerassigning and 
+    function assignBuyer(uint256 _nftID, address _buyer) public {
+    require(isListed[_nftID], "Property is not listed");
+    require(buyer[_nftID] == address(0), "Buyer already assigned");
+    require(msg.sender == _buyer, "Only the buyer can assign themselves");
+    buyer[_nftID] = _buyer;
     }
 
-    // Put Under Contract (only buyer - payable escrow)
     function depositEarnest(uint256 _nftID) public payable onlyBuyer(_nftID) {
-        require(msg.value >= escrowAmount[_nftID]);
+        require(msg.value >= escrowAmount[_nftID], "Insufficient escrow deposit");
     }
 
-    // Update Inspection Status (only inspector)
     function updateInspectionStatus(uint256 _nftID, bool _passed)
         public
         onlyInspector
@@ -77,42 +103,46 @@ contract Escrow {
         inspectionPassed[_nftID] = _passed;
     }
 
-    // Approve Sale
     function approveSale(uint256 _nftID) public {
+        require(
+            msg.sender == buyer[_nftID] || 
+            msg.sender == seller[_nftID] || 
+            msg.sender == lender,
+            "Unauthorized approver"
+        );
         approval[_nftID][msg.sender] = true;
     }
 
-    // Finalize Sale
-    // -> Require inspection status (add more items here, like appraisal)
-    // -> Require sale to be authorized
-    // -> Require funds to be correct amount
-    // -> Transfer NFT to buyer
-    // -> Transfer Funds to Seller
     function finalizeSale(uint256 _nftID) public {
-        require(inspectionPassed[_nftID]);
-        require(approval[_nftID][buyer[_nftID]]);
-        require(approval[_nftID][seller]);
-        require(approval[_nftID][lender]);
-        require(address(this).balance >= purchasePrice[_nftID]);
+        require(isListed[_nftID], "Property not listed for sale");
+        require(inspectionPassed[_nftID], "Inspection not passed");
+        require(approval[_nftID][buyer[_nftID]], "Buyer approval missing");
+        require(approval[_nftID][seller[_nftID]], "Seller approval missing");
+        require(approval[_nftID][lender], "Lender approval missing");
+        require(address(this).balance >= purchasePrice[_nftID], "Insufficient funds");
 
         isListed[_nftID] = false;
 
-        (bool success, ) = payable(seller).call{value: address(this).balance}(
-            ""
-        );
-        require(success);
+        // Transfer funds to seller
+        (bool success, ) = payable(seller[_nftID]).call{value: purchasePrice[_nftID]}("");
+        require(success, "Funds transfer failed");
 
+        // Transfer NFT to buyer
         IERC721(nftAddress).transferFrom(address(this), buyer[_nftID], _nftID);
     }
 
-    // Cancel Sale (handle earnest deposit)
-    // -> if inspection status is not approved, then refund, otherwise send to seller
     function cancelSale(uint256 _nftID) public {
-        if (inspectionPassed[_nftID] == false) {
+        require(isListed[_nftID], "Property not listed for sale");
+
+        if (!inspectionPassed[_nftID]) {
+            // Refund escrow to buyer
             payable(buyer[_nftID]).transfer(address(this).balance);
         } else {
-            payable(seller).transfer(address(this).balance);
+            // Send escrow to seller
+            payable(seller[_nftID]).transfer(address(this).balance);
         }
+
+        isListed[_nftID] = false;
     }
 
     receive() external payable {}
